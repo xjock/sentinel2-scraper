@@ -1,5 +1,5 @@
 # Binaries
-sentinel2-go
+sentinel2-scraper
 *.exe
 *.exe~
 *.dll
@@ -25,6 +25,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.claude/
 
 # Go
 vendor/

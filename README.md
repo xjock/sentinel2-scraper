@@ -1,87 +1,93 @@
-# Sentinel-2 Go Fetcher
+# Sentinel-2 Go 下载器
 
-A lightweight Go program to search and download Sentinel-2 L2A satellite imagery from multiple STAC APIs, with an interactive web-based setup wizard.
+[English](README.en.md) | 中文
 
-## Features
+一个轻量级的 Go 命令行工具，用于查询并下载 Sentinel-2 L2A 卫星影像。支持多种数据源、网页与终端配置向导、断点续传、自动 RGB 合成与去黑边裁切，输出为 Cloud Optimized GeoTIFF（COG）。**纯 Go 标准库实现，零外部 Go 依赖。**
 
-- **Multiple data sources**: Earth Search (public, no auth), CDSE STAC (per-band), or CDSE OData (full-scene ZIP)
-- **Web setup wizard**: First run automatically opens a browser page for configuration
-- **Automatic band mapping**: Use friendly names like `red`, `green`, `blue` — automatically translated to provider-specific keys
-- **Resume support**: Skip already-downloaded files, resume interrupted downloads
-- **Concurrent downloads**: Configurable worker pool
-- **RGB composite**: Auto-build RGB TIFFs via GDAL
-- **Pure Go, zero external dependencies**
+> 当前版本：**v1.0**
 
-## Quick Start
+## 特性
+
+- **三种数据源**
+  - Earth Search STAC（AWS 公开，无需认证）
+  - CDSE STAC（哥白尼数据空间，按波段 COG）
+  - CDSE OData（哥白尼数据空间，整景 SAFE ZIP）
+- **配置向导**：首次运行自动打开浏览器，也支持终端 SSH 模式
+- **友好波段名**：`red` / `green` / `blue` / `nir` 等，自动映射到各数据源对应的资源键
+- **断点续传**：基于 HTTP `Range`，已下载文件自动跳过
+- **并发下载**：可配置 worker 池
+- **RGB / RGBA 合成**：通过 GDAL 自动生成 8-bit RGB 合成图，并自动**去黑边**裁出真实成像范围
+- **KML 输出**：每个影像生成独立 KML 文件，方便在 Google Earth 等软件中预览覆盖范围
+- **认证**：CDSE Keycloak OAuth2 密码模式，自动刷新 token
+
+## 快速开始
 
 ```bash
-git clone <your-repo-url>
+git clone <你的仓库地址>
 cd sentinel2-go
-go build -o sentinel2-go main.go
+go build -o sentinel2-scraper .
 
-# First run — automatically opens browser setup page
-./sentinel2-go
+# 首次运行 — 自动打开浏览器进行配置
+./sentinel2-scraper
 ```
 
-On first run, a browser page opens at `http://127.0.0.1:<random-port>`. Choose your data source and authentication method, then the program continues automatically.
+首次运行时，如果 `~/.sentinel2-go/settings.json` 不存在，程序会自动启动本地 HTTP 服务并打开浏览器，引导你选择数据源和填写认证信息。配置完成后程序自动继续。
 
-## Setup Wizard
+## 配置向导
 
-### First Run (Auto)
+### 首次运行（自动）
 
 ```bash
-./sentinel2-go
+./sentinel2-scraper
 ```
 
-If `~/.sentinel2-go/settings.json` does not exist, the program automatically starts a local HTTP server and opens your browser.
-
-### Manual Reconfiguration
+### 手动重新配置
 
 ```bash
-# Web setup (with browser)
-./sentinel2-go -setup
+# 网页向导（打开浏览器）
+./sentinel2-scraper -setup
 
-# Terminal setup (no browser, SSH-friendly)
-./sentinel2-go -setup-auth
+# 终端向导（无图形界面 / SSH 友好）
+./sentinel2-scraper -setup-auth
 ```
 
-### Data Source Options
+### 数据源选项
 
-| Option | Description | Authentication |
-|--------|-------------|----------------|
-| **Earth Search STAC API** | Public AWS-hosted STAC, no auth needed | None |
-| **CDSE STAC API** | Copernicus Data Space Ecosystem, per-band COG download | Username+Password |
-| **CDSE OData API** | Copernicus Data Space Ecosystem, full-scene ZIP download | Username+Password |
-| **Custom STAC** | Any compatible STAC API endpoint | none |
+| 选项 | 说明 | 认证 |
+|------|------|------|
+| **Earth Search STAC API** | AWS 托管的公开 STAC，按波段下载 | 无 |
+| **CDSE STAC API** | 哥白尼数据空间，按波段 COG 下载 | 用户名 + 密码 |
+| **CDSE OData API** | 哥白尼数据空间，整景 SAFE ZIP 下载 | 用户名 + 密码 |
+| **自定义 STAC** | 任何兼容的 STAC API 端点 | 无 |
 
-### CDSE Setup Steps
+### CDSE 注册步骤
 
-1. Visit [dataspace.copernicus.eu](https://dataspace.copernicus.eu/) and register
-2. Verify your email
-3. In the setup page, enter your CDSE username (email) and password
-4. Save and continue
+1. 访问 [dataspace.copernicus.eu](https://dataspace.copernicus.eu/) 注册账号
+2. 查收验证邮件并完成验证
+3. 在配置向导中填写 CDSE 登录邮箱与密码
+4. 保存并继续
 
-Settings are stored in `~/.sentinel2-go/settings.json` (permissions `0600`).
+配置文件保存在 `~/.sentinel2-go/settings.json`，权限 `0600`（仅所有者可读写）。**密码以明文存储**，请妥善保护用户目录权限。
 
-### Data Source Comparison
+### 数据源对比
 
-| Dimension | Earth Search STAC | CDSE STAC | CDSE OData |
-|-----------|-------------------|-----------|------------|
-| **Download granularity** | Per-band COG (50–200 MB/band) | Per-band COG (50–200 MB/band) | Full-scene ZIP (500 MB–1 GB+) |
-| **Authentication** | None | CDSE account required | CDSE account required |
-| **Speed** | Fast (AWS CloudFront CDN) | Medium (EU direct) | Slow (on-the-fly packaging + large files) |
-| **Access from China** | May require VPN | Likely accessible without VPN | Likely accessible without VPN |
-| **Best for** | Quick preview, on-demand bands, RGB composite | Official source, precise bands, no-VPN fallback | Complete original product package with metadata |
-| **Resume support** | Yes | Yes | Yes |
-| **RGB composite** | Auto | Auto | N/A (process after extracting ZIP) |
+| 维度 | Earth Search STAC | CDSE STAC | CDSE OData |
+|------|-------------------|-----------|------------|
+| **下载粒度** | 单波段 COG（50–200 MB / 波段） | 单波段 COG（50–200 MB / 波段） | 整景 ZIP（500 MB–1 GB+） |
+| **认证** | 无 | 需 CDSE 账号 | 需 CDSE 账号 |
+| **速度** | 快（AWS CloudFront CDN） | 中等（欧盟直链） | 慢（实时打包 + 大文件） |
+| **国内访问** | 多数情况下需翻墙 | 多数情况下需翻墙 | 大概率免翻墙 |
+| **断点续传** | ✅ | ✅ | ✅ |
+| **RGB 合成** | ✅ 自动 | ✅ 自动 | ✅ 自动（解压 R10m B02/B03/B04 后合成） |
+| **KML 输出** | ✅ | ✅ | ✅ |
 
-**Recommendation:**
+**选型建议：**
 
-- **Good network, want speed** → Earth Search STAC (default, fastest)
-- **Earth Search unreachable, or need official source** → CDSE STAC (per-band, faster than OData)
-- **Need complete product ZIP (all bands + metadata)** → CDSE OData (slow but complete)
+- **网络好，追求速度** → Earth Search STAC（默认，最快）
+- **Earth Search 连不上，或需要官方源** → CDSE STAC（按波段）
+- **需要完整 SAFE 产品（含全部波段 + 元数据）或国内免翻墙** → CDSE OData
 
-### `settings.json` — Authentication
+### `settings.json` 示例
 
 ```json
 {
@@ -95,14 +101,11 @@ Settings are stored in `~/.sentinel2-go/settings.json` (permissions `0600`).
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `username` | CDSE login email |
-| `password` | CDSE login password |
+`source` 可取 `earth_search`（或留空）/ `cdse` / `cdse_odata` / `custom`。
 
-## Configuration
+## 配置说明
 
-### `config.json` — Query Parameters
+### `config.json` — 查询参数
 
 ```json
 {
@@ -117,29 +120,29 @@ Settings are stored in `~/.sentinel2-go/settings.json` (permissions `0600`).
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `bbox` | `[float64]` | Bounding box `[west, south, east, north]` |
-| `start_date` | `string` | Start date `YYYY-MM-DD` |
-| `end_date` | `string` | End date `YYYY-MM-DD` |
-| `max_cloud` | `float64` | Maximum cloud cover percentage (0-100) |
-| `bands` | `[string]` | List of bands to download (friendly names) |
-| `limit` | `int` | Max number of STAC items to query (default: 20) |
-| `max_workers` | `int` | Concurrent download workers (default: 4) |
-| `max_retries` | `int` | Retry attempts per failed download (default: 0) |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `bbox` | `[float64]` | 边界框 `[西, 南, 东, 北]` |
+| `start_date` | `string` | 起始日期 `YYYY-MM-DD` |
+| `end_date` | `string` | 结束日期 `YYYY-MM-DD` |
+| `max_cloud` | `float64` | 最大云量百分比（0–100） |
+| `bands` | `[string]` | 待下载的波段列表（友好名称） |
+| `limit` | `int` | STAC 查询返回上限（默认 20） |
+| `max_workers` | `int` | 并发下载线程数（默认 4） |
+| `max_retries` | `int` | 单文件失败重试次数（默认 3） |
 
-### Command-line Flags
+### 命令行参数
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-config` | `config.json` | Path to query configuration JSON |
-| `-dest` | `./sentinel2_data` | Destination directory |
-| `-setup` | — | Open web setup wizard |
-| `-setup-auth` | — | Terminal authentication setup |
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `-config` | `config.json` | 查询配置 JSON 路径 |
+| `-dest` | `./sentinel2_data` | 下载文件保存目录 |
+| `-setup` | — | 打开网页配置向导 |
+| `-setup-auth` | — | 打开终端配置向导 |
 
-### Environment Variables
+### 环境变量
 
-In `config.json`, you can reference environment variables:
+`config.json` 中可使用 `${VAR}` 引用环境变量：
 
 ```json
 {
@@ -150,14 +153,14 @@ In `config.json`, you can reference environment variables:
 }
 ```
 
-## Band Mapping
+## 波段映射
 
-Use **friendly names** in `config.json`. The program automatically maps them to provider-specific asset keys.
+在 `config.json` 中使用 **友好名称**，程序根据数据源自动映射到对应的资源键。
 
-### Earth Search Bands
+### Earth Search 波段
 
-| Friendly Name | Earth Search Key | Sentinel-2 Band |
-|---------------|------------------|-----------------|
+| 友好名称 | Earth Search 键 | Sentinel-2 波段 |
+|----------|----------------|-----------------|
 | `coastal` | `coastal` | B01 |
 | `blue` | `blue` | B02 |
 | `green` | `green` | B03 |
@@ -172,10 +175,10 @@ Use **friendly names** in `config.json`. The program automatically maps them to 
 | `swir22` | `swir22` | B12 |
 | `scl` | `scl` | SCL |
 
-### CDSE Bands (Auto-mapped)
+### CDSE 波段（自动映射）
 
-| Friendly Name | CDSE Asset Key | Resolution |
-|---------------|----------------|------------|
+| 友好名称 | CDSE Asset 键 | 分辨率 |
+|----------|---------------|--------|
 | `coastal` | `B01_60m` | 60m |
 | `blue` | `B02_10m` | 10m |
 | `green` | `B03_10m` | 10m |
@@ -193,76 +196,137 @@ Use **friendly names** in `config.json`. The program automatically maps them to 
 | `wvp` | `WVP_10m` | 10m |
 | `tci` | `TCI_10m` | 10m |
 
-Example: if you set `"bands": ["red", "green", "blue"]`, the program automatically downloads `B04_10m`, `B03_10m`, `B02_10m` from CDSE, but saves them as `<item>_red.tif`, `<item>_green.tif`, `<item>_blue.tif` for compatibility with `BuildRGB`.
+> 例如：`"bands": ["red", "green", "blue"]` 在 CDSE STAC 模式下会自动下载 `B04_10m` / `B03_10m` / `B02_10m`，但保存为 `<item>_red.tif` / `<item>_green.tif` / `<item>_blue.tif`，与 RGB 合成流程兼容。
 
-## Build
+## 输出
 
-```bash
-go build -o sentinel2-go main.go
-```
+### STAC 模式（Earth Search / CDSE STAC）
 
-## Docker
-
-```bash
-docker build -t sentinel2-go .
-docker run --rm -v $(pwd)/config.json:/app/config.json -v $(pwd)/sentinel2_data:/app/sentinel2_data sentinel2-go
-```
-
-## Output
-
-### STAC mode (Earth Search / CDSE STAC)
-
-Per-band downloads, file naming:
 ```
 sentinel2_data/
   S2A_50TMK_20250105_0_L2A_red.tif
   S2A_50TMK_20250105_0_L2A_green.tif
   S2A_50TMK_20250105_0_L2A_blue.tif
+  S2A_50TMK_20250105_0_L2A_nir.tif
+  S2A_50TMK_20250105_0_L2A_rgba.tif    ← RGB + Alpha 去黑边合成图
+  S2A_50TMK_20250105_0_L2A.kml         ← 影像范围 KML
   ...
 ```
 
-CDSE STAC source files are JPEG 2000 (`.jp2`), but GDAL tools read them transparently. RGB composites are built as 8-bit GeoTIFFs.
+CDSE STAC 的源文件为 JPEG 2000（`.jp2`），GDAL 工具可直接读取。RGB 输出统一拉伸为 8-bit GeoTIFF（固定 0–3000 → 0–255），并通过 `gdal_trace_outline` + `gdalwarp` + `gdal_merge_simple` 生成带 Alpha 通道的 RGBA 影像，自动剔除影像四周的 nodata 黑边。
 
-### OData mode (CDSE OData)
+### OData 模式（CDSE OData）
 
-Full-scene ZIP downloads, file naming:
 ```
 sentinel2_data/
-  S2A_T50TMK_20250105T030529_MSIL2A.zip
+  S2A_T50TMK_20250105T030529_MSIL2A.zip            ← 完整 SAFE 产品
+  S2A_T50TMK_20250105T030529_MSIL2A_rgba.tif       ← 自动 RGB 去黑边
+  S2A_T50TMK_20250105T030529_MSIL2A.kml            ← 范围 KML
   ...
 ```
 
-ZIP packages contain the complete product (all JP2 bands + XML metadata). Extract and process with SNAP, ENVI, etc. RGB composites are **not** auto-generated in OData mode.
+OData 模式同样会自动从 ZIP 中提取 `R10m/B02/B03/B04` 三个 JP2 进行 RGB 合成，并执行去黑边流程。完整产品 ZIP 始终保留，可用 SNAP / ENVI 等软件做后续处理。
 
-## FAQ
+## 编译与运行
 
-**Q: Which data source should I use?**
-- **Start with Earth Search**: fastest, AWS CloudFront global CDN, but may be unreachable from some networks
-- **If Earth Search fails** → switch to **CDSE STAC**: per-band downloads, smaller files, EU academic site likely accessible without VPN
-- **Need the complete original product package** → use **CDSE OData**: full-scene ZIP, slow but complete, also likely accessible without VPN
-
-**Q: Download fails / times out?**
-- Earth Search / CDSE STAC: each file is ~50-200MB, default timeout is 10 minutes
-- CDSE OData: full-scene ZIPs are typically 500MB–1GB+, single-file timeout is 30 minutes, recommend using on a stable network
-- If timeouts are frequent, increase `max_retries` in `config.json` (e.g., set to 3 or 5)
-
-**Q: No items returned?**
-- Check that your date range is within the available archive
-- Ensure your bbox is within land areas
-- Try increasing `max_cloud` or removing the cloud filter
-- CDSE data availability may differ from Earth Search
-
-**Q: How do I switch data sources?**
 ```bash
-./sentinel2-go -setup
-# Re-select a data source in the web wizard and save
+# 直接构建
+go build -o sentinel2-scraper .
+
+# 或用 Makefile
+make build           # 等价于 go build -o sentinel2-scraper .
+make run             # 构建并运行
+make fmt             # go fmt ./...
+make vet             # go vet ./...
+make clean           # 清理产物
+make package         # Windows + GDAL 工具一并打包
+make docker          # 构建 Docker 镜像
 ```
 
-You can switch between Earth Search, CDSE STAC, and CDSE OData at any time via `-setup`. Already-downloaded files are never affected.
+测试：
 
-**Q: Can I use custom STAC APIs?**
-Yes. In the setup wizard, choose "Custom STAC API" and provide your endpoint URL and collection name.
+```bash
+go test ./...
+```
 
-## License
+## Docker
+
+```bash
+docker build -t sentinel2-scraper .
+docker run --rm \
+  -v $(pwd)/config.json:/app/config.json \
+  -v $(pwd)/sentinel2_data:/app/sentinel2_data \
+  sentinel2-scraper
+```
+
+## 依赖
+
+- **Go 标准库**：无任何第三方 Go 依赖
+- **GDAL 命令行工具**（运行时依赖，仅在合成 RGB 时调用）：
+  - `gdalbuildvrt` / `gdal_translate` / `gdalwarp`
+  - `gdal_trace_outline` / `gdal_rasterize` / `gdal_merge_simple`
+  - `gdalinfo`（用于读取尺寸 / extent）
+
+Windows 用户可使用仓库中已附带的 GDAL 二进制（`gdal305.dll`、`proj_9_1.dll`、`share/proj` 等），将其与 `sentinel2-scraper.exe` 放在同一目录即可。Linux / macOS 请通过包管理器安装 GDAL（如 `apt install gdal-bin`、`brew install gdal`）。
+
+> 程序会优先在当前可执行目录查找 GDAL 工具，未找到再回退到 `PATH`。`PROJ_DATA` 会自动指向同目录下的 `share/proj`。
+
+## 项目结构
+
+代码位于 `package main`，按职责拆分为 9 个 Go 文件：
+
+| 文件 | 职责 |
+|------|------|
+| `main.go` | CLI 入口、STAC 流程编排、worker 池 |
+| `config.go` | `Config` / `SearchOptions` 结构、配置加载与合并 |
+| `settings.go` | 用户级持久化设置、网页 / CLI 配置向导 |
+| `auth.go` | 认证抽象、CDSE Keycloak OAuth2 密码模式 |
+| `stac.go` | STAC 搜索、云量过滤、按波段下载 |
+| `odata.go` | CDSE OData 搜索、整景 ZIP 下载、JP2 提取与 RGB 合成 |
+| `gdal.go` | GDAL 工具发现、`BuildRGB` / RGBA 去黑边 |
+| `kml.go` | 共享的 KML 写入辅助 |
+| `download.go` | 共享的 `Range` 断点续传与进度显示 |
+
+## 常见问题
+
+**Q：选哪种数据源？**
+
+- **首选 Earth Search**：速度最快，AWS CloudFront 全球加速；但部分网络可能不通
+- **Earth Search 不可达** → 切到 **CDSE STAC**：按波段下载，文件较小
+- **国内免翻墙 / 需要完整 SAFE 产品** → **CDSE OData**：整景 ZIP，慢但完整
+
+**Q：下载失败 / 超时怎么办？**
+
+- Earth Search / CDSE STAC：每个文件约 50–200 MB，单文件超时 10 分钟
+- CDSE OData：整景 ZIP 通常 500 MB–1 GB+，单文件超时 30 分钟
+- 网络不稳定时，调高 `config.json` 中的 `max_retries`（如 3 或 5）
+- 中断后重新运行会自动断点续传
+
+**Q：搜索没有返回数据？**
+
+- 确认日期范围在 Sentinel-2 归档时间内
+- 确认 bbox 在陆地范围内
+- 调高 `max_cloud` 或暂时去掉云量限制
+- 不同数据源的覆盖时间略有差异
+
+**Q：如何切换数据源？**
+
+```bash
+./sentinel2-scraper -setup
+```
+
+随时可以切换，已下载的文件不受影响。
+
+**Q：能否使用自定义 STAC API？**
+
+可以。在配置向导中选择"自定义 STAC API"，填写端点 URL 和 Collection 名称。
+
+**Q：RGB 合成失败 / 黑边没有被裁掉？**
+
+- 确认 `red` / `green` / `blue` 三个波段都成功下载
+- 确认 GDAL 工具及 `gdal_trace_outline`、`gdal_merge_simple` 在当前目录或 `PATH` 中
+- 在 Windows 上若提示 `gdal305.dll` 找不到，请把 GDAL DLL 与 `sentinel2-scraper.exe` 放在同一目录
+
+## 许可证
 
 MIT

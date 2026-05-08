@@ -1,6 +1,6 @@
 .PHONY: build run clean docker
 
-BINARY := sentinel2-go
+BINARY := sentinel2-scraper
 OUTPUT := sentinel2_data
 
 build:
