@@ -39,7 +39,8 @@ vendor/
 
 # Build artifacts
 build/
-dist/
+dist/*
+!dist/config.json
 *.tar.gz
 
 # Secret
