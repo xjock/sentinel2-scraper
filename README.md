@@ -321,12 +321,6 @@ Windows 用户可使用仓库中已附带的 GDAL 二进制（`gdal305.dll`、`p
 
 可以。在配置向导中选择"自定义 STAC API"，填写端点 URL 和 Collection 名称。
 
-**Q：RGB 合成失败 / 黑边没有被裁掉？**
-
-- 确认 `red` / `green` / `blue` 三个波段都成功下载
-- 确认 GDAL 工具及 `gdal_trace_outline`、`gdal_merge_simple` 在当前目录或 `PATH` 中
-- 在 Windows 上若提示 `gdal305.dll` 找不到，请把 GDAL DLL 与 `sentinel2-scraper.exe` 放在同一目录
-
 ## 许可证
 
 MIT

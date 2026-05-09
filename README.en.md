@@ -321,12 +321,6 @@ You can switch any time; previously-downloaded files are unaffected.
 
 Yes. Pick "Custom STAC API" in the wizard and provide the endpoint URL and collection name.
 
-**Q: RGB composition fails or black borders are not trimmed?**
-
-- Verify `red` / `green` / `blue` all downloaded successfully
-- Verify GDAL tools are available — including `gdal_trace_outline` and `gdal_merge_simple`
-- On Windows, if `gdal305.dll` is missing, copy the GDAL DLLs next to `sentinel2-scraper.exe`
-
 ## License
 
 MIT
