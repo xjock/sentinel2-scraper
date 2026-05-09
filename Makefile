@@ -55,4 +55,7 @@ package-linux:
 	mkdir -p dist
 	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)_$(VERSION)_linux_amd64 .
 
+package-appimage:
+	bash packaging/linux/build-appimage.sh "$(VERSION)"
+
 package: package-windows package-linux

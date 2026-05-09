@@ -43,6 +43,9 @@ func findGDALTool(name string) string {
 
 func gdalEnv() []string {
 	env := os.Environ()
+	if os.Getenv("PROJ_DATA") != "" {
+		return env
+	}
 	if _, err := os.Stat("share/proj"); err == nil {
 		projDir, _ := filepath.Abs("share/proj")
 		env = append(env, "PROJ_DATA="+projDir)

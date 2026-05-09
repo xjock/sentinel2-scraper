@@ -15,11 +15,12 @@ BINARIES=(
     gdal_trace_outline
     gdal_merge_simple
     pkRenew
+    gdalinfo
 )
 
 collect_deps() {
     local bin="$1"
-    ldd "$bin" 2>/dev/null | awk '/=>/ {print $3}' | while read -r lib; do
+    while read -r lib; do
         [ -z "$lib" ] && continue
         [ "$lib" = "not" ] && continue
         local base
@@ -32,7 +33,7 @@ collect_deps() {
                 collect_deps "$lib"
             fi
         fi
-    done
+    done < <(ldd "$bin" 2>/dev/null | awk '/=>/ {print $3}')
 }
 
 for bin in "${BINARIES[@]}"; do

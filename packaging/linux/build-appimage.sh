@@ -21,7 +21,7 @@ echo "Collecting GDAL dependencies..."
 bash "${SCRIPT_DIR}/collect-deps.sh" "${APPDIR}/usr/lib"
 
 # Copy GDAL binaries
-for tool in gdalbuildvrt gdal_translate gdalwarp gdal_rasterize gdal_trace_outline gdal_merge_simple pkRenew; do
+for tool in gdalbuildvrt gdal_translate gdalwarp gdal_rasterize gdal_trace_outline gdal_merge_simple pkRenew gdalinfo; do
     if command -v "$tool" >/dev/null 2>&1; then
         cp "$(command -v "$tool")" "${APPDIR}/usr/bin/"
     else
