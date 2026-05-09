@@ -259,18 +259,6 @@ docker run --rm \
   sentinel2-scraper
 ```
 
-## 依赖
-
-- **Go 标准库**：无任何第三方 Go 依赖
-- **GDAL 命令行工具**（运行时依赖，仅在合成 RGB 时调用）：
-  - `gdalbuildvrt` / `gdal_translate` / `gdalwarp`
-  - `gdal_trace_outline` / `gdal_rasterize` / `gdal_merge_simple`
-  - `gdalinfo`（用于读取尺寸 / extent）
-
-Windows 用户可使用仓库中已附带的 GDAL 二进制（`gdal305.dll`、`proj_9_1.dll`、`share/proj` 等），将其与 `sentinel2-scraper.exe` 放在同一目录即可。Linux / macOS 请通过包管理器安装 GDAL（如 `apt install gdal-bin`、`brew install gdal`）。
-
-> 程序会优先在当前可执行目录查找 GDAL 工具，未找到再回退到 `PATH`。`PROJ_DATA` 会自动指向同目录下的 `share/proj`。
-
 ## 项目结构
 
 代码位于 `package main`，按职责拆分为 9 个 Go 文件：
